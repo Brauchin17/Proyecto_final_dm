@@ -39,6 +39,13 @@ pip install -r requirements.txt
 - Metadatos: run_id, ingested_at_utc
 - Target (agregado en ML): target_up = 1 si close > open, else 0
 
+# Justificación del modelo
+
+Al evaluar los modelos, observamos que muchas métricas tradicionales como el F1-Score podían ser engañosas debido al comportamiento del mercado, el baseline que asume siempre la clase positiva (1) predecía "bien" debido a los mercados en alza, ya que ciertas acciones (como NVIDIA, Google o Apple) hayan estado en alza en el periodo de test, esto no garantiza que un modelo tenga buen desempeño, pero puede influir en métricas como F1 si hay un sesgo de clase hacia subidas. Esto hace que el F1-Score aparente ser relativamente alto incluso en modelos que no capturan patrones reales de subida o bajada.
+
+Por esta razón, se priorizó ROC-AUC como métrica principal. ROC-AUC mide la capacidad del modelo para diferenciar correctamente entre subidas y no subidas a lo largo de todos los posibles umbrales de decisión, lo cual es crucial en un mercado altamente variable donde la proporción de subidas y bajadas puede cambiar día a día. De hecho, aunque algunos modelos tenían un F1-Score alto en entrenamiento, su ROC-AUC era mucho más bajo en validación, reflejando que su capacidad real de discriminar correctamente los movimientos del mercado era limitada.
+
+Es por esto que el modelo que se escoge es el de mayor ROC-AUC en validación, siendo para el caso `Random Forest` (0.541075), que también a su vez tiene un F1-macro en validación (0.539861) superior a todos los otros modelos
 # 1. Cómo levantar el entorno con Docker Compose
 Copia .env.example a .env y completa las variables (credenciales Postgres, TICKERS=AAPL, START_DATE=2020-01-01, END_DATE=2025-12-31, etc.).
 
