@@ -1,0 +1,199 @@
+Pipeline de datos para trading algorítmico con mercado (Yahoo Finance). Modelo de clasificación binaria para predecir si el activo cierra arriba o abajo respecto al open (target_up). Incluye simulación de inversión de USD 10,000 en 2025 y API REST.## Requisitos
+
+```bash
+Python >= 3.10
+pandas
+numpy
+scikit-learn
+fastapi
+uvicorn
+yfinance
+matplotlib
+seaborn
+```
+
+Se instalan:
+
+```bash
+pip install -r requirements.txt
+```
+
+# Estructura del proyecto
+```text
+├── docker-compose.yml     # Configuración de servicios
+├── .env.example           # Ejemplo de variables de ambiente
+├── notebooks/             # Notebooks de ingesta y ML
+│   ├── 01_ingesta_prices_raw.ipynb
+│   └── ml_trading_classifier.ipynb  # Entrenamiento, evaluación y simulación
+├── scripts/
+│   ├── build_features.py  # Script CLI para analytics.daily_features
+│   └── app.py             # FastAPI para el modelo
+└── README.md
+```
+# Columnas principales de analytics.daily_features
+
+- Identificación: date, ticker, year, month, day_of_week
+- Mercado: open, close, high, low, volume
+- Features derivadas: return_close_open = (close - open) / open, return_prev_close = close / close_lag1 - 1, volatility_n_days (std de retornos últimos N días)
+- Flags: is_monday, is_friday (opcional: is_earnings_day)
+- Metadatos: run_id, ingested_at_utc
+- Target (agregado en ML): target_up = 1 si close > open, else 0
+
+# 1. Cómo levantar el entorno con Docker Compose
+Copia .env.example a .env y completa las variables (credenciales Postgres, TICKERS=AAPL, START_DATE=2020-01-01, END_DATE=2025-12-31, etc.).
+
+```bash
+docker compose up -d
+```
+## Servicios:
+
+- jupyter-notebook: http://localhost:8888 (token en logs)
+- postgres: BD para raw y analytics
+- feature-builder: Worker para build_features.py
+- model-api: API REST (después de entrenar el modelo)
+- (Opcional) pgadmin: http://localhost:5050 para inspeccionar tablas.
+
+# 2. Comandos de ingesta
+
+Desde jupyter-notebook, ejecuta:
+
+- **Ingesta precios**:notebooks/01_ingesta_prices_raw.ipynb
+  - Lee TICKERS, START_DATE, END_DATE de env.
+  - Descarga OHLCV de yfinance.
+  - Carga a raw.prices_daily con metadatos.
+# 3. Comando para construir analytics.daily_features
+
+Se usa el script CLI
+
+```bash
+docker compose run feature-builder \
+    --mode full \
+    --ticker AAPL \
+    --start-date 2020-01-01 \
+    --end-date 2025-12-31 \
+    --run-id my_run_1 \
+    --overwrite false
+```
+
+- --mode full: (Re)crea la tabla completa.
+- --mode by-date-range: Procesa subconjunto de fechas.
+- Logs: Filas creadas/actualizadas, min/max date, duración.
+
+# 4. Entrenamiento de los modelos
+Ejecuta notebooks/ml_trading_classifier.ipynb en jupyter-notebook.
+
+- Carga analytics.daily_features (de Postgres o exporta a CSV).
+- EDA: Balance de target_up, distribuciones, correlaciones.
+- Features: Lags de retornos, volatility, etc. (sin leakage).
+- Split temporal: Train (2021-2023), Val (2024), Test (2025).
+- Preprocesamiento: Imputación, StandardScaler, one-hot para categóricas.
+- Modelos (mínimo 7): LogisticRegression, DecisionTree, RandomForest, GradientBoosting, XGBoost, LightGBM, CatBoost.
+- Tuning: GridSearchCV con TimeSeriesSplit para hiperparámetros (ej. C para logistic, max_depth para trees).
+- Métricas: Accuracy, Precision, Recall, F1, ROC-AUC en Train/Val/Test.
+- Baseline: Siempre predice clase mayoritaria.
+- Selecciona mejor: Mayor F1 en Val + simplicidad.
+- Reentrena en Train+Val, evalúa en Test.
+
+El notebook muestra matriz de confusión, comparación tabular y análisis de errores.
+
+# 5. Guardar el mejor modelo
+En el notebook ml_trading_classifier.ipynb, al final:
+- Guarda pipeline completo (preprocesamiento + modelo) con joblib:
+```python
+import joblib
+joblib.dump(pipeline, 'models/best_model.joblib')
+```
+
+# 6. Cómo levantar la API y probar /predict
+## Iniciar la API (FastAPI)
+Asegúrate de que el modelo esté guardado
+```Bash
+docker compose up -d model-api
+```
+O localmente:
+```Bash
+uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload
+```
+- API disponible en http://localhost:8000
+## Endpoint: POST /predict
+El body esperado sigue el siguiente formato:
+```JSON
+{
+  "open": 150.2,
+  "open_lag1": 149.8,
+  "high_lag1": 151.0,
+  "low_lag1": 148.9,
+  "close_lag1": 150.1,
+  "volume_lag1": 1200000,
+  "return_prev_close_lag1": 0.002,
+  "return_close_open_lag1": -0.001,
+  "volatility_7_days": 0.015,
+  "volatility_30_days": 0.02,
+  "year": 2024,
+  "month": 12,
+  "day_of_week": 3,
+  "is_monday": 0,
+  "is_friday": 0,
+  "is_earning_day": 0,
+  "ticker": "AAPL"
+}
+```
+Con curl:
+```Bash
+curl -X POST "http://localhost:8000/predict" \
+     -H "Content-Type: application/json" \
+     -d '{ "open": 150.2, "open_lag1": 149.8, "high_lag1": 151.0, "low_lag1": 148.9, "close_lag1": 150.1, "volume_lag1": 1200000, "return_prev_close_lag1": 0.002, "return_close_open_lag1": -0.001, "volatility_7_days": 0.015, "volatility_30_days": 0.02,"year": 2024,"month": 12,"day_of_week": 3,"is_monday": 0,"is_friday": 0,"is_earning_day": 0,"ticker": "AAPL"
+}'
+```
+
+Respuesta (ejemplo):
+
+```JSON
+{
+  "prediction": 1,
+}
+```
+## Ejemplo con Postman:
+
+- Method: POST
+- URL: http://localhost:8000/predict
+- Body → raw → JSON → Pega el JSON de ejemplo
+- Send → Ver prediction (0/1).
+
+# 7. Cómo correr la simulación de inversión de USD 10,000 en 2025
+
+En ml_trading_classifier.ipynb, sección de simulación:
+
+- Usa datos de Test (2025).
+- Regla: Si prediction == 1, compra al open, vende al close (largo intradía).
+- Si 0, queda en efectivo.
+- Capital inicial: 10000 USD.
+- Sin costos (o agrega 0.1% comisión opcional).
+- Outputs: Capital final, retorno total (%), trades, curva de equity (plot).
+
+Ejecuta la celda de simulación en el notebook.
+Comparación: Retorno vs. métricas ML (F1/ROC-AUC en Test). 
+
+# 8. Flujo completo
+```Bash
+# 1. Levantar entorno
+docker compose up -d
+
+# 2. Ingesta (en jupyter-notebook)
+# Ejecuta 01_ingesta_prices_raw.ipynb
+
+# 3. Construir features
+docker compose run feature-builder --mode full --ticker AAPL --start-date 2020-01-01 --end-date 2025-12-31 --run-id test_run
+
+# 4. Entrenar y guardar modelo (en jupyter-notebook)
+# Ejecuta ml_trading_classifier.ipynb completo → guarda models/best_model.joblib
+
+# 5. Levantar API
+docker compose up -d model-api
+
+# 6. Probar API (curl ejemplo arriba)
+
+# 7. Simulación: Re-ejecuta sección de simulación en ml_trading_classifier.ipynb
+```
+
+
