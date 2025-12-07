@@ -1,0 +1,71 @@
+services:
+  jupyter-notebook:
+    image: jupyter/base-notebook
+    container_name: jupyter-vscode
+    environment:
+      - PG_HOST=warehouse
+      - PG_PORT=5432
+      - PG_DB=${PG_DB}
+      - PG_USER=${PG_USER}
+      - PG_SCHEMA_RAW=raw
+      - PG_SCHEMA_ANALYTICS=analytics
+      - PG_PASSWORD=${PG_PASSWORD}
+      - TICKERS=${TICKERS}
+      - START_DATE=${START_DATE}
+      - END_DATE=${END_DATE}
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+  warehouse:
+    image: postgres:13
+    container_name: postgres-warehouse
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data:/var/lib/postgresql/data
+  warehouseui:
+    image: dpage/pgadmin4
+    container_name: postgres-warehouse-ui
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "8080:80"
+    depends_on:
+      - warehouse
+    volumes:
+      - ./data:/var/lib/pgadmin/
+  obt-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obt-builder
+    depends_on:
+      - warehouse
+    environment:
+      PG_HOST: ${PG_HOST}
+      PG_PORT: 5432
+      PG_DB: ${PG_DB}
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+    volumes:
+      - ./scripts:/app/scripts
+    command: >
+      python /app/scripts/build_features.py
+  model-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: model-api
+    depends_on:
+      - warehouse
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./scripts:/app/scripts
+      - ./notebooks/model.joblib:/app/model.joblib
