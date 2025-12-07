@@ -196,4 +196,16 @@ docker compose up -d model-api
 # 7. Simulación: Re-ejecuta sección de simulación en ml_trading_classifier.ipynb
 ```
 
+# 9. Checklist
+
+- [x] Se usa `analytics.daily_features` como base.
+- [x] `target_up` definido sin leakage.
+- [x] ≥ 7 modelos entrenados, tuneados y comparados.
+- [x] Baseline implementado.
+- [x] Modelo ganador reentrenado en Train+Val y evaluado en Test.
+- [x] Simulación de inversión con USD 10,000 en 2025 realizada y documentada.
+- [x] Modelo serializado y cargado por la API.
+- [x] `model-api` responde correctamente a `/predict`.
+
+
 
