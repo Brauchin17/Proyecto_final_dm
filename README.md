@@ -45,24 +45,21 @@ Al evaluar los modelos, observamos que muchas métricas tradicionales como el F1
 
 Por esta razón, se priorizó ROC-AUC como métrica principal. ROC-AUC mide la capacidad del modelo para diferenciar correctamente entre subidas y no subidas a lo largo de todos los posibles umbrales de decisión, lo cual es crucial en un mercado altamente variable donde la proporción de subidas y bajadas puede cambiar día a día. De hecho, aunque algunos modelos tenían un F1-Score alto en entrenamiento, su ROC-AUC era mucho más bajo en validación, reflejando que su capacidad real de discriminar correctamente los movimientos del mercado era limitada.
 
-Es por esto que el modelo que se escoge es el de mayor ROC-AUC en validación, siendo para el caso `Random Forest` (0.541075), que también a su vez tiene un F1-macro en validación (0.539861) superior a todos los otros modelos
+Es por esto que el modelo que se escoge es el de mayor ROC-AUC en validación, siendo para el caso `Random Forest` (0.5297), que también a su vez tiene un F1-macro en validación (0.5268) superior a todos los otros modelos, lo cual pese a no parecer una gran mejora, es mejor que una moneda aleatoria y a la vez hace sentido no tener scores muy altos, porque entonces el mercado no tendría sentido y sería un modelo del que ya se hubiera escuchado hablar si fuese mucho mejor.
 
 ## Comparación con metricas de ML despues de simulación
 
 Se evaluó el Random Forest tanto con métricas de ML como con resultados financieros en 2025.
 
-F1-Score Test: 0.6360
+F1-Score Test: 0.6240
 
-ROC-AUC Test: 0.5070
+ROC-AUC Test: 0.5246
 
-Capital final del portafolio: $14,225.52
+F1-Macro-Score Test: 0.5094
 
-- AAPL: $10,086.26
-- AMZN: $10,304.61
-- GOOGL: $16,826.35
-- NVDA: $19,684.85
+Capital final del portafolio: $12,675.43
 
-Aunque el **F1-Score es relativamente alto, esto no garantiza buenos retornos**, ya que puede verse inflado si el mercado está en alza (como AAPL, GOOGL y NVDA) y el modelo predice mayormente “subida”. Por otro lado, la ROC-AUC refleja la capacidad real del modelo para distinguir subidas y bajadas, siendo más confiable para evaluar desempeño en mercados variables. En este caso, la ROC-AUC cercana a 0.5 indica que el modelo tiene capacidad limitada de discriminación, y los retornos positivos se deben en parte a la tendencia general del mercado, no solo a predicciones precisas, con NVDA se puede ver ya que es el que mas esta en alza, se ve como predecir gran cantidad de 1 (inversiones) te da un mayor retorno.
+Aunque el **F1-Score es relativamente alto, esto no garantiza buenos retornos**, ya que puede verse inflado si el mercado está en alza (como AAPL, GOOGL y NVDA) y el modelo predice mayormente “subida”. Por otro lado, la ROC-AUC refleja la capacidad real del modelo para distinguir subidas y bajadas, siendo más confiable para evaluar desempeño en mercados variables. En este caso, la ROC-AUC (0.52) indica que el modelo tiene capacidad limitada de discriminación, y los retornos positivos se deben en parte a la tendencia general del mercado, no solo a predicciones precisas,por ejemplo el caso de NVDA ya que es el que mas esta en alza, se ve como predecir gran cantidad de 1 (inversiones) te da un mayor retorno.
 
 
 # 1. Cómo levantar el entorno con Docker Compose
