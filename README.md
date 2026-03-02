@@ -1,4 +1,5 @@
-Pipeline de datos para trading algorítmico con mercado (Yahoo Finance). Modelo de clasificación binaria para predecir si el activo cierra arriba o abajo respecto al open (target_up). Incluye simulación de inversión de USD 10,000 en 2025 y API REST.## Requisitos
+Pipeline de datos para trading algorítmico con mercado (Yahoo Finance). Modelo de clasificación binaria para predecir si el activo cierra arriba o abajo respecto al open (target_up). Incluye simulación de inversión de USD 10,000 en 2025 y API REST.
+## Requisitos
 
 ```bash
 Python >= 3.10
